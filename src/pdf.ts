@@ -5,10 +5,11 @@ import handlebars from "handlebars";
 import * as uuid from "uuid";
 import { z } from "zod";
 import { getDestination } from "./storage";
+import puppeteer from "puppeteer";
+import { RequestHandler } from "express";
 
-const puppeteer = require('puppeteer');
-const browser: Browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
-const defaultCss = await fs.readFile('src/default-css.css', 'utf-8');
+let browser: Browser;
+let defaultCss: string;
 
 const createPDFOptions = z.object({
   html: z.string().min(1, "HTML content is required").optional(),
@@ -28,13 +29,19 @@ const createPDFOptions = z.object({
   pdfOptions: z.record(z.any()).optional(),
 });
 
-export async function createPDF(rawOptions: any) {
+export async function init() {
+  browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+  defaultCss = await fs.readFile('src/default-css.css', 'utf-8');
+}
 
-  const bucketName = process.env.BUCKET_NAME;
+export const createPDF: RequestHandler = async (req, res) => {
+
+  const bucketName = process.env['BUCKET_NAME'];
   if (!bucketName) {
-    return Response.json({
+    res.status(500).send({
       error: 'BUCKET_NAME environment variable is not set'
-    }, {status: 500});
+    });
+    return;
   }
 
   let page: Page|undefined = undefined;
@@ -42,7 +49,7 @@ export async function createPDF(rawOptions: any) {
   let options: z.infer<typeof createPDFOptions>;
 
   try {
-
+    const rawOptions = req.body;
     options = createPDFOptions.parse(rawOptions);
 
     html = options.html;
@@ -68,10 +75,11 @@ export async function createPDF(rawOptions: any) {
 
   }
   catch (error) {
-    return Response.json({
+    res.status(400).send({
       error: 'Invalid options or data',
       message: (error as Error).message
-    }, {status: 400});
+    });
+    return;
   }
 
   try {
@@ -93,15 +101,17 @@ export async function createPDF(rawOptions: any) {
     });
     await stream.pipeTo(writeStream);
     
-    return Response.json({
+    res.status(200).send({
       id,
       url
     });
+    return;
   }
   catch (error) {
-    return Response.json({ error: 'Failed to create PDF',
+    res.status(500).send({ error: 'Failed to create PDF',
       message: (error as Error).message
-    }, {status: 500});
+    });
+    return;
   }
   finally {
     await page?.close();

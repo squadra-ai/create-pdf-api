@@ -1,23 +1,15 @@
-import { createPDF } from './pdf';
+import { init, createPDF } from './pdf';
+import express from 'express'
 import dotenv from 'dotenv';
 dotenv.config();
 
-const PORT = process.env.PORT || 3000;
-
-// Create Bun server
-Bun.serve({
-  routes: {
-    '/': {
-      POST: async (req) => {
-        const body = await req.json();
-        console.log(`${req.method} ${req.url}`, body);
-        const res = await createPDF(body);
-        console.log(`Status ${res.status} ${res.ok? '' : await res.clone().text()}`);
-        return res;
-      }
-    }
-  },
-  port: PORT,
+const PORT = process.env['PORT'] || 3000;
+const app = express();
+app.use(express.json());
+app.post('/', createPDF);
+init().then(() => {
+  console.log('PDF generator initialized');
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 });
-
-console.log(`Server running at http://localhost:${PORT}`);
