@@ -79,6 +79,7 @@ export const createPDF: RequestHandler = async (req, res) => {
       error: 'Invalid options or data',
       message: (error as Error).message
     });
+    console.error(error);
     return;
   }
 
@@ -101,6 +102,8 @@ export const createPDF: RequestHandler = async (req, res) => {
     });
     await stream.pipeTo(writeStream);
     
+    console.log(`Request completed: ${url}`);
+
     res.status(200).send({
       id,
       url
@@ -111,6 +114,7 @@ export const createPDF: RequestHandler = async (req, res) => {
     res.status(500).send({ error: 'Failed to create PDF',
       message: (error as Error).message
     });
+    console.error(error);
     return;
   }
   finally {
